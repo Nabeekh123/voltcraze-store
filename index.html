@@ -79,9 +79,12 @@ async function submitOrder(e){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const data = await response.json().catch(() => ({}));
+    const responseText = await response.text();
+    let data = {};
+    try { data = responseText ? JSON.parse(responseText) : {}; } catch {}
     if (!response.ok || !data.success) {
-      throw new Error(data.error || "We couldn't place your order. Please try again.");
+      const detail = data.error || data.message || responseText || "The server returned no error details.";
+      throw new Error("API returned HTTP " + response.status + ": " + String(detail).slice(0, 300));
     }
     result.innerHTML = '<p class="notice">Order placed successfully! Your order number is <strong>#' +
       String(data.order_id) + '</strong>. Total: <strong>' + money(Number(data.total_pkr)) +

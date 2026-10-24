@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOLTCRAZE | Admin Dashboard</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0b0b;
+      color: #f5f5f5;
+    }
+
+    header {
+      padding: 22px;
+      border-bottom: 1px solid #292929;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 { margin: 0; font-size: 23px; }
+    h1 span { color: #baff39; }
+    main { max-width: 1100px; margin: auto; padding: 24px; }
+
+    .panel, .order {
+      background: #151515;
+      border: 1px solid #292929;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    input, button {
+      font: inherit;
+      padding: 12px;
+      border-radius: 7px;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      margin: 12px 0;
+      color: white;
+      background: #222;
+      border: 1px solid #444;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .primary { background: #baff39; color: #111; }
+    .secondary { background: #333; color: white; }
+    .hidden { display: none; }
+    .muted { color: #aaa; }
+    .message { margin-top: 12px; overflow-wrap: anywhere; }
+    .order-top {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .total { color: #baff39; font-size: 20px; font-weight: bold; }
+    .items { border-top: 1px solid #333; margin-top: 15px; padding-top: 10px; }
+    .item { padding: 7px 0; color: #ddd; }
+    .details { line-height: 1.7; overflow-wrap: anywhere; }
+    #orders { margin-top: 24px; }
+
+    @media (max-width: 600px) {
+      main { padding: 14px; }
+      header { padding: 16px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>VOLT<span>CRAZE</span> / ADMIN</h1>
+    <button id="logoutBtn" class="secondary hidden">Log out</button>
+  </header>
+
+  <main>
+    <section id="loginPanel" class="panel">
+      <h2>Admin Login</h2>
+      <p class="muted">Sign in with your authorized admin account.</p>
+
+      <form id="loginForm">
+        <input id="email" type="email" placeholder="Admin email" required
+               autocomplete="username">
+        <input id="password" type="password" placeholder="Password" required
+               autocomplete="current-password">
+        <button class="primary" type="submit">Sign In</button>
+      </form>
+
+      <p id="loginMessage" class="message"></p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="panel">
+        <h2>Orders</h2>
+        <p id="summary" class="muted">Loading orders...</p>
+        <button id="refreshBtn" class="primary">Refresh Orders</button>
+        <p id="dashboardMessage" class="message"></p>
+      </div>
+      <div id="orders"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL =
+      "https://kmrvoyvdioeiugsadzlo.supabase.co";
+
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttcnZveXZkaW9laXVnc2FkemxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzEwNjEsImV4cCI6MjEwODQwNzA2MX0.CE7A0QnUySi3kEv6pbZNGg0jE395imH2zU85NCEvG7Q";
+
+    const ADMIN_URL = `${SUPABASE_URL}/functions/v1/admin-orders`;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const $ = id => document.getElementById(id);
+
+    function showMessage(id, message) {
+      $(id).textContent = message;
+    }
+
+    function setLoggedIn(isLoggedIn) {
+      $("loginPanel").classList.toggle("hidden", isLoggedIn);
+      $("dashboard").classList.toggle("hidden", !isLoggedIn);
+      $("logoutBtn").classList.toggle("hidden", !isLoggedIn);
+    }
+
+    // Insert all API-provided text as text nodes, never as HTML.
+    function addText(parent, tag, text, className = "") {
+      const element = document.createElement(tag);
+      element.textContent = text ?? "";
+      if (className) element.className = className;
+      parent.appendChild(element);
+      return element;
+    }
+
+    async function loadOrders() {
+      showMessage("dashboardMessage", "Loading orders...");
+      $("orders").replaceChildren();
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+
+      if (!session) {
+        setLoggedIn(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(ADMIN_URL, {
+          method: "GET",
+          headers: {
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${session.access_token}`
+          }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            await supabase.auth.signOut();
+            setLoggedIn(false);
+          }
+          throw new Error(result.error || "Could not load orders.");
+        }
+
+        const orders = result.orders || [];
+        const items = result.items || [];
+
+        $("summary").textContent = `${orders.length} order(s) found.`;
+        showMessage("dashboardMessage", "");
+
+        if (!orders.length) {
+          addText($("orders"), "p", "No orders found.", "muted");
+          return;
+        }
+
+        for (const order of orders) {
+          const card = document.createElement("article");
+          card.className = "order";
+
+          const top = document.createElement("div");
+          top.className = "order-top";
+
+          addText(top, "h3", `Order #${order.id}`);
+          addText(top, "div", `Rs ${Number(order.total_pkr).toLocaleString("en-PK")}`, "total");
+          card.appendChild(top);
+
+          const date = order.created_at
+            ? new Date(order.created_at).toLocaleString()
+            : "Date unavailable";
+
+          const details = document.createElement("div");
+          details.className = "details";
+
+          addText(details, "div", `Customer: ${order.customer_name || "—"}`);
+          addText(details, "div", `Phone: ${order.phone || "—"}`);
+          addText(details, "div", `Address: ${order.address || "—"}`);
+          addText(details, "div", `City: ${order.city || "—"}`);
+          addText(details, "div", `Status: ${order.status || "—"}`);
+          addText(details, "div", `Date: ${date}`, "muted");
+
+          card.appendChild(details);
+
+          const itemSection = document.createElement("div");
+          itemSection.className = "items";
+          addText(itemSection, "strong", "Products");
+
+          const orderItems = items.filter(
+            item => String(item.order_id) === String(order.id)
+          );
+
+          if (!orderItems.length) {
+            addText(itemSection, "div", "No item details found.", "item");
+          } else {
+            for (const item of orderItems) {
+              const lineTotal =
+                Number(item.quantity) * Number(item.unit_price_pkr);
+
+              addText(
+                itemSection,
+                "div",
+                `${item.product_name} — Qty: ${item.quantity} × Rs ${Number(item.unit_price_pkr).toLocaleString("en-PK")} = Rs ${lineTotal.toLocaleString("en-PK")}`,
+                "item"
+              );
+            }
+          }
+
+          card.appendChild(itemSection);
+          $("orders").appendChild(card);
+        }
+      } catch (error) {
+        showMessage("dashboardMessage", error.message || "Something went wrong.");
+      }
+    }
+
+    $("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      showMessage("loginMessage", "Signing in...");
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: $("email").value.trim(),
+        password: $("password").value
+      });
+
+      if (error) {
+        showMessage("loginMessage", error.message);
+        return;
+      }
+
+      showMessage("loginMessage", "");
+      setLoggedIn(true);
+      await loadOrders();
+    });
+
+    $("refreshBtn").addEventListener("click", loadOrders);
+
+    $("logoutBtn").addEventListener("click", async () => {
+      await supabase.auth.signOut();
+      setLoggedIn(false);
+      $("orders").replaceChildren();
+      showMessage("loginMessage", "You have logged out.");
+    });
+
+    const { data } = await supabase.auth.getSession();
+
+    if (data.session) {
+      setLoggedIn(true);
+      await loadOrders();
+    } else {
+      setLoggedIn(false);
+    }
+  </script>
+</body>
+</html>

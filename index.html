@@ -76,7 +76,11 @@ async function submitOrder(e){
   try {
     const response = await fetch("https://kmrvoyvdioeiugsadzlo.supabase.co/functions/v1/create-order", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+  "Content-Type": "application/json",
+  "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttcnZveXZkaW9laXVnc2FkemxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzEwNjEsImV4cCI6MjEwODQwNzA2MX0.CE7A0QnUySi3kEv6pbZNGg0jE395imH2zU85NCEvG7Q",
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttcnZveXZkaW9laXVnc2FkemxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzEwNjEsImV4cCI6MjEwODQwNzA2MX0.CE7A0QnUySi3kEv6pbZNGg0jE395imH2zU85NCEvG7Q"
+},
       body: JSON.stringify(payload)
     });
     const responseText = await response.text();

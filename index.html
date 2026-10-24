@@ -259,14 +259,9 @@ async function submitOrder(e){
       throw new Error("API returned HTTP " + response.status + ": " + String(detail).slice(0, 300));
     }
     const customerOrderNumber = data.order_number ?? data.order_id;
-    result.innerHTML = '<p class="notice">Order placed successfully! Your order number is <strong>#' +
+    result.innerHTML = '<div class="notice"><p>Order placed successfully! Your order number is <strong>#' +
       String(customerOrderNumber) + '</strong>. Total: <strong>' + money(Number(data.total_pkr)) +
-      '</strong>. Please keep your order number for reference.</p>';
-    cart = {};
-    save();
-    renderCart();
-    form.reset();
-    closeCart();
+      '</strong>.</p><p>Please keep your order number for reference.</p><button type="button" onclick="acknowledgeOrder()">OK</button></div>';
     toast("Order placed successfully");
   } catch (error) {
     result.innerHTML = '<p class="notice">Order not confirmed: ' +
@@ -276,6 +271,15 @@ async function submitOrder(e){
     button.disabled = false;
     button.textContent = originalButtonText;
   }
+}
+function acknowledgeOrder(){
+  cart = {};
+  save();
+  renderCart();
+  document.querySelector(".checkout").reset();
+  document.getElementById("orderResult").innerHTML = "";
+  closeCart();
+  toast("Cart cleared");
 }
 function copySummary(){let t=document.getElementById("summaryText");t.select();document.execCommand("copy");toast("Summary copied")}
 function toast(msg){let t=document.getElementById("toast");t.textContent=msg;t.style.display="block";setTimeout(()=>t.style.display="none",1800)}
